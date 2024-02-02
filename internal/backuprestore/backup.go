@@ -338,7 +338,7 @@ func (h *BRHandler) extractBackupFromConfigmaps(ctx context.Context, configmaps 
 
 				backup := velerov1.Backup{}
 				if err := runtime.DefaultUnstructuredConverter.FromUnstructured(resource.Object, &backup); err != nil {
-					return nil, err
+					return nil, fmt.Errorf("failed to convert to backup CR %s from unstructured to typed: %w", backup.GetName(), err)
 				}
 				backups = append(backups, &backup)
 			}
@@ -372,8 +372,9 @@ func (h *BRHandler) ExportOadpConfigurationToDir(ctx context.Context, toDir, oad
 	}
 
 	// Create the directory for DPA
-	if err := os.MkdirAll(filepath.Join(toDir, oadpDpaPath), 0o700); err != nil {
-		return err
+	dpaDir := filepath.Join(toDir, oadpDpaPath)
+	if err := os.MkdirAll(dpaDir, 0o700); err != nil {
+		return fmt.Errorf("failed to make dir for DPA in %s: %w", dpaDir, err)
 	}
 
 	var secrets []string
@@ -384,7 +385,7 @@ func (h *BRHandler) ExportOadpConfigurationToDir(ctx context.Context, toDir, oad
 
 		filePath := filepath.Join(toDir, oadpDpaPath, dpa.GetName()+yamlExt)
 		if err := utils.MarshalToYamlFile(&dpa, filePath); err != nil {
-			return err
+			return fmt.Errorf("failed to marshal DPA yaml to %s: %w", filePath, err)
 		}
 		h.Log.Info("Exported DataProtectionApplication CR to file", "path", filePath)
 
@@ -415,7 +416,7 @@ func (h *BRHandler) ExportOadpConfigurationToDir(ctx context.Context, toDir, oad
 	}
 	// Create the directory for secrets
 	if err := os.MkdirAll(filepath.Join(toDir, oadpSecretPath), 0o700); err != nil {
-		return err
+		return fmt.Errorf("failed to make oadp secret path in %s: %w", oadpDpaPath, err)
 	}
 
 	// Write secrets
@@ -433,7 +434,7 @@ func (h *BRHandler) ExportOadpConfigurationToDir(ctx context.Context, toDir, oad
 
 		filePath := filepath.Join(toDir, oadpSecretPath, secretName+yamlExt)
 		if err := utils.MarshalToYamlFile(storageSecret, filePath); err != nil {
-			return err
+			return fmt.Errorf("failed to marshal oadp secret %s: %w", filePath, err)
 		}
 		h.Log.Info("Exported secret to file", "path", filePath)
 	}

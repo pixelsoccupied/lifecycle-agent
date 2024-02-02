@@ -330,7 +330,7 @@ func (p *PostPivot) changeRegistryInCSVDeployment(ctx context.Context, client ru
 	p.log.Info("Changing release registry in csv deployment")
 	csvD, err := utils.GetCSVDeployment(ctx, client)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get CSV deployment: %w", err)
 	}
 
 	if seedReconfiguration.ReleaseRegistry == seedClusterInfo.ReleaseRegistry {
@@ -370,7 +370,11 @@ func (p *PostPivot) changeRegistryInCSVDeployment(ctx context.Context, client ru
 
 func (p *PostPivot) cleanup() error {
 	p.log.Info("Cleaning up")
-	return utils.RemoveListOfFolders(p.log, []string{p.workingDir, common.SeedDataDir})
+	listOfDirs := []string{p.workingDir, common.SeedDataDir}
+	if err := utils.RemoveListOfFolders(p.log, listOfDirs); err != nil {
+		return fmt.Errorf("failed to cleanup %s: %w", listOfDirs, err)
+	}
+	return nil
 }
 
 func (p *PostPivot) setNewClusterID(ctx context.Context, client runtimeclient.Client, seedReconfiguration *clusterconfig_api.SeedReconfiguration) error {
@@ -496,7 +500,7 @@ func (p *PostPivot) createSSHKeyMachineConfigs(sshKey string) error {
 	}
 	rawExt, err := utils.ConvertToRawExtension(ignConfig)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to convert ign config to raw ext: %w", err)
 	}
 
 	for _, role := range []string{"master", "worker"} {

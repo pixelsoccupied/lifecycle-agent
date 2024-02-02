@@ -95,8 +95,9 @@ func (h *EMHandler) ExportExtraManifestToDir(ctx context.Context, extraManifestC
 	}
 
 	// Create the directory for the extra manifests
-	if err := os.MkdirAll(filepath.Join(toDir, ExtraManifestPath), 0o700); err != nil {
-		return err
+	exMDirPath := filepath.Join(toDir, ExtraManifestPath)
+	if err := os.MkdirAll(exMDirPath, 0o700); err != nil {
+		return fmt.Errorf("failed to create directory for extra manifests in %s: %w", exMDirPath, err)
 	}
 
 	for i, cm := range configmaps {
@@ -110,7 +111,7 @@ func (h *EMHandler) ExportExtraManifestToDir(ctx context.Context, extraManifestC
 						// Reach the end of the data, exit the loop
 						break
 					}
-					return err
+					return fmt.Errorf("failed to decode manifest: %w", err)
 				}
 				// In case it contains the UID and ResourceVersion, remove them
 				manifest.SetUID("")
@@ -120,7 +121,7 @@ func (h *EMHandler) ExportExtraManifestToDir(ctx context.Context, extraManifestC
 				filePath := filepath.Join(toDir, ExtraManifestPath, fileName)
 				err = utils.MarshalToYamlFile(&manifest, filePath)
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to marshal manifest %s to yaml: %w", manifest.GetName(), err)
 				}
 				h.Log.Info("Exported manifest to file", "path", filePath)
 			}
@@ -175,7 +176,7 @@ func (h *EMHandler) ApplyExtraManifests(ctx context.Context, fromDir string) err
 		if os.IsNotExist(err) {
 			return nil
 		}
-		return err
+		return fmt.Errorf("failed to read extraManifest from dir %s: %w", fromDir, err)
 	}
 
 	h.Log.Info("Applying extra manifests")
@@ -186,7 +187,7 @@ func (h *EMHandler) ApplyExtraManifests(ctx context.Context, fromDir string) err
 
 	c, mapper, err := common.NewDynamicClientAndRESTMapper()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get NewDynamicClientAndRESTMapper for extraManifests: %w", err)
 	}
 
 	for _, manifestYaml := range manifestYamls {
@@ -225,7 +226,7 @@ func (h *EMHandler) ApplyExtraManifests(ctx context.Context, fromDir string) err
 					h.Log.Error(nil, errMsg)
 					return NewEMFailedError(errMsg)
 				}
-				return err
+				return fmt.Errorf("failed to create extramanifest called %s: %w", manifest.GetName(), err)
 			}
 			h.Log.Info("Created manifest", "manifest", manifest.GetName())
 		} else {

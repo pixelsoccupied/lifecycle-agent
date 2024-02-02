@@ -105,7 +105,7 @@ func clusterServiceVersionReady(c client.Reader, l logr.Logger) error {
 	l.Info("Waiting for all ClusterServiceVersion (csv) to be ready")
 	err := wait.PollUntilContextTimeout(context.Background(), pollInterval, pollTimeout, true, isClusterServiceVersionReady(c, l))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to wait for all ClusterServiceVersion (csv) to be ready: %w", err)
 	}
 
 	return nil

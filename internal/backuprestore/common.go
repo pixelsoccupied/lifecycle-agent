@@ -301,7 +301,7 @@ func (h *BRHandler) ValidateOadpConfigmap(ctx context.Context, content []lcav1al
 			h.Log.Error(nil, errMsg)
 			return NewBRFailedValidationError("OADP", errMsg)
 		}
-		return err
+		return fmt.Errorf("failed to oadp configMaps: %w", err)
 	}
 
 	backups, err := h.extractBackupFromConfigmaps(ctx, configmaps)

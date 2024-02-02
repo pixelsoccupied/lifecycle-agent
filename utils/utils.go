@@ -217,7 +217,7 @@ func RemoveListOfFolders(log *logrus.Logger, folders []string) error {
 	for _, folder := range folders {
 		log.Infof("Removing %s folder", folder)
 		if err := os.RemoveAll(folder); err != nil {
-			return err
+			return fmt.Errorf("failed to remove %s folder: %w", folder, err)
 		}
 	}
 	return nil

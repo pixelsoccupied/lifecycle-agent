@@ -305,13 +305,11 @@ func (r *ImageBasedUpgradeReconciler) prepStageWorker(ctx context.Context, ibu *
 		// Setup state-root
 		select {
 		case <-derivedCtx.Done():
-			r.Log.Info("Context canceled before setting up stateroot")
-			return derivedCtx.Err()
+			return fmt.Errorf("context canceled before setting up stateroot: %w", derivedCtx.Err())
 		default:
 			r.PrepTask.Progress = "Setting up stateroot"
 			if err = r.SetupStateroot(derivedCtx, ibu, imageListFile); err != nil {
-				r.Log.Error(err, "failed to setup stateroot")
-				return err
+				return fmt.Errorf("failed to setup stateroot: %w", err)
 			}
 			r.Log.Info("Successfully setup stateroot")
 			r.PrepTask.Progress = "Successfully setup stateroot"
@@ -340,8 +338,7 @@ func (r *ImageBasedUpgradeReconciler) prepStageWorker(ctx context.Context, ibu *
 		r.PrepTask.Progress = "Waiting for precaching job to complete"
 		interval := 30 * time.Second
 		if err = wait.PollUntilContextCancel(derivedCtx, interval, false, r.verifyPrecachingCompleteFunc(5, interval)); err != nil {
-			r.Log.Info("Failed to precache images")
-			return err
+			return fmt.Errorf("failed to precache images: %w", err)
 		}
 
 		// Fetch final precaching job report summary

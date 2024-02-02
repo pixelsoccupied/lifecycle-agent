@@ -40,7 +40,7 @@ func (c *Client) PullLocal(repoPath string) error {
 		args = append(args, "--repo", "/mnt/ostree/repo")
 	}
 	_, err := c.executor.Execute("ostree", append(args, repoPath)...)
-	return err
+	return fmt.Errorf("failed to pull local ostree with args %s, %w", args, err)
 }
 
 func (c *Client) OSInit(osname string) error {

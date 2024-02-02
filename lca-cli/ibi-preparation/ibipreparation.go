@@ -81,7 +81,7 @@ func (i *IBIPrepare) Run() error {
 
 	status, err := workload.PullImages(imageList, i.pullSecretFile)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to pull images from imageList: %w", err)
 	}
 	if err := workload.ValidatePrecache(status, false); err != nil {
 		return err

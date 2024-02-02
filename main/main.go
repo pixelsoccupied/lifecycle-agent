@@ -351,7 +351,7 @@ func initSeedGen(ctx context.Context, c client.Client, log *logr.Logger) error {
 	if err := common.RetryOnConflictOrRetriable(retry.DefaultBackoff, func() error {
 		return c.Create(ctx, seedgen)
 	}); err != nil {
-		return err
+		return fmt.Errorf("failed to create seedgen: %w", err)
 	}
 
 	// Put the saved status into the newly create seedgen with the right resource
@@ -360,7 +360,7 @@ func initSeedGen(ctx context.Context, c client.Client, log *logr.Logger) error {
 	if err := common.RetryOnConflictOrRetriable(retry.DefaultBackoff, func() error {
 		return c.Status().Update(ctx, seedgen)
 	}); err != nil {
-		return err
+		return fmt.Errorf("failed to update seedgen status: %w", err)
 	}
 
 	// Rename files for debugging in case of error

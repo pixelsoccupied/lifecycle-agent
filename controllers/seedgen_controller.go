@@ -124,7 +124,7 @@ func (r *SeedGeneratorReconciler) deregisterFromHub(ctx context.Context, hubClie
 	// on the SNO, so maybe we need a separate resource discovery mechanism, or distinct scheme?
 	typeMeta, err := commonUtils.TypeMetaForObject(r.Scheme, managedcluster)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get typeMeta for ManagedCluster: %w", err)
 	}
 	managedcluster.TypeMeta = *typeMeta
 

@@ -138,8 +138,11 @@ func (s *SeedRestoration) cleanupServiceUnits() error {
 
 		return nil
 	})
+	if err != nil {
+		return fmt.Errorf("failed to cleanup service units: %w", err)
+	}
 
-	return err
+	return nil
 }
 
 func (s *SeedRestoration) cleanupScriptFiles() error {

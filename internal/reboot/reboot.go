@@ -162,7 +162,7 @@ func (c *RebootClient) RebootToNewStateRoot(rationale string) error {
 func (c *RebootClient) IsOrigStaterootBooted(ibu *v1alpha1.ImageBasedUpgrade) (bool, error) {
 	currentStaterootName, err := c.rpmOstreeClient.GetCurrentStaterootName()
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to get current stateroot name: %w", err)
 	}
 	c.log.Info("stateroots", "current stateroot:", currentStaterootName, "desired stateroot", common.GetDesiredStaterootName(ibu))
 	return currentStaterootName != common.GetDesiredStaterootName(ibu), nil

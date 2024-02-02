@@ -110,7 +110,7 @@ func NewDynamicClientAndRESTMapper() (dynamic.Interface, meta.RESTMapper, error)
 	// Read kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", PathOutsideChroot(KubeconfigFile))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to read kubeconfig for NewDynamicClientAndRESTMapper: %w", err)
 	}
 
 	// Create dynamic client
