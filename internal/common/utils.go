@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+
 	"io"
 	"os"
 	"path/filepath"
@@ -31,7 +32,10 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 
+	"net/http"
+
 	"github.com/go-logr/logr"
+	ibuv1 "github.com/openshift-kni/lifecycle-agent/api/imagebasedupgrade/v1"
 	cp "github.com/otiai10/copy"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -40,8 +44,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	ibuv1 "github.com/openshift-kni/lifecycle-agent/api/imagebasedupgrade/v1"
 )
 
 // TODO: Need a better way to change this but will require relatively big refactoring
@@ -127,12 +129,6 @@ func GetStaterootPath(osname string) string {
 // the stateroot deployment, we need to access it in this odd manner.
 func GetStaterootOptOpenshift(staterootPath string) string {
 	return filepath.Join(staterootPath, "var", OptOpenshift)
-}
-
-// FuncTimer check execution time
-func FuncTimer(start time.Time, name string, r logr.Logger) {
-	elapsed := time.Since(start)
-	r.Info(fmt.Sprintf("%s took %s", name, elapsed))
 }
 
 func IsConflictOrRetriable(err error) bool {
@@ -242,4 +238,51 @@ func GenerateDeleteOptions() *client.DeleteOptions {
 		PropagationPolicy: &propagationPolicy,
 	}
 	return &delOpt
+}
+
+// RetryRoundTripper include anything here that's useful during middleware processing
+type RetryRoundTripper struct {
+	transport http.RoundTripper
+	backoff   wait.Backoff
+	log       logr.Logger
+}
+
+// RetryMiddleware pass this into your client to make it retriable with configured backoff
+func RetryMiddleware(logger logr.Logger) func(rt http.RoundTripper) http.RoundTripper {
+	return func(rt http.RoundTripper) http.RoundTripper {
+		return &RetryRoundTripper{
+			transport: rt,
+			backoff:   getBackoff(),
+			log:       logger.WithName("retry-middleware"),
+		}
+	}
+}
+
+// getBackoff configured for API outages where we require additional time to recover before being served.
+// this exponential with max wait time about ~3mins
+func getBackoff() wait.Backoff {
+	return wait.Backoff{
+		Steps:    45,
+		Duration: 10 * time.Millisecond,
+		Factor:   1.2,
+		Jitter:   0.1,
+	}
+}
+
+// RoundTrip implements RoundTripper to do retries.
+// This helpful especially when running in SNO,
+// where API server maybe down and retries are needed to eventually be successful,
+// This allows all our client calls to have this "retry" feature without explicitly wrapping them
+func (r *RetryRoundTripper) RoundTrip(req *http.Request) (resp *http.Response, err error) {
+	if errRetryOnError := retry.OnError(r.backoff, IsRetriable, func() error {
+		resp, err = r.transport.RoundTrip(req)
+		if err != nil && IsRetriable(err) {
+			r.log.Info("WARNING: retrying", "req.url", req.URL.String(), "error", err)
+		}
+		return err //nolint:wrapcheck
+	}); errRetryOnError != nil {
+		r.log.Info("WARNING: retrying failed", "error", errRetryOnError)
+	}
+
+	return resp, err //nolint:wrapcheck
 }

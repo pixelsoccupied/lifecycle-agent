@@ -69,7 +69,7 @@ func ibuStaterootSetupRun() error {
 	defer cancelCtx()
 
 	logger.Info("Starting a new client")
-	c, err := getClient()
+	c, err := getClient(logger)
 	if err != nil {
 		return fmt.Errorf("failed to create client for stateroot setup job: %w", err)
 	}
@@ -135,11 +135,9 @@ func initStaterootSetupSigHandler(logger logr.Logger, opsClient ops.Ops, seedIma
 }
 
 // getClient returns a client for this job
-func getClient() (client.Client, error) {
-	cfg, err := config.GetConfig()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get k8s config: %w", err)
-	}
+func getClient(logger logr.Logger) (client.Client, error) {
+	cfg := config.GetConfigOrDie()
+	cfg.Wrap(common.RetryMiddleware(logger)) // allow all client calls to be retriable
 
 	c, err := client.New(cfg, client.Options{Scheme: scheme})
 	if err != nil {
