@@ -26,8 +26,6 @@ import (
 	"github.com/openshift-kni/lifecycle-agent/internal/clusterconfig"
 	"github.com/openshift-kni/lifecycle-agent/internal/extramanifest"
 	kbatchv1 "k8s.io/api/batch/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
@@ -137,7 +135,9 @@ func main() {
 	mux := &sync.Mutex{}
 
 	cfg := ctrl.GetConfigOrDie()
-	cfg.Wrap(common.RetryMiddleware(log)) // allow all client calls to be retriable
+	cfg.Wrap(common.LogMiddleware(log))
+	cfg.Wrap(common.GetMiddleware(log)) // allow all client calls to be retriable
+
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                        scheme,
 		HealthProbeBindAddress:        probeAddr,
@@ -169,10 +169,10 @@ func main() {
 	// in the future we will have only one of them
 	newLogger := logrus.New()
 
-	if err := os.MkdirAll(common.PathOutsideChroot(common.LCAConfigDir), 0o700); err != nil {
-		setupLog.Error(err, fmt.Sprintf("unable to create config dir: %s", common.LCAConfigDir))
-		os.Exit(1)
-	}
+	//if err := os.MkdirAll(common.PathOutsideChroot(common.LCAConfigDir), 0o700); err != nil {
+	//	setupLog.Error(err, fmt.Sprintf("unable to create config dir: %s", common.LCAConfigDir))
+	//	os.Exit(1)
+	//}
 
 	executor := ops.NewChrootExecutor(newLogger, true, common.Host)
 	op := ops.NewOps(newLogger, executor)
@@ -204,17 +204,17 @@ func main() {
 	// a simple in-cluster client-go based client, useful for getting pod logs
 	// as runtime-controller client currently doesn't support pod sub resources
 	// https://github.com/kubernetes-sigs/controller-runtime/issues/452#issuecomment-792266582
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		setupLog.Error(err, "Failed to get InClusterConfig")
-		os.Exit(1)
-	}
-	// creates the clientset
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		setupLog.Error(err, "Failed to get clientset")
-		os.Exit(1)
-	}
+	//config, err := rest.InClusterConfig()
+	//if err != nil {
+	//	setupLog.Error(err, "Failed to get InClusterConfig")
+	//	os.Exit(1)
+	//}
+	//// creates the clientset
+	//clientset, err := kubernetes.NewForConfig(config)
+	//if err != nil {
+	//	setupLog.Error(err, "Failed to get clientset")
+	//	os.Exit(1)
+	//}
 
 	if err = (&controllers.ImageBasedUpgradeReconciler{
 		Client:          mgr.GetClient(),
@@ -244,7 +244,7 @@ func main() {
 			RebootClient:    rebootClient,
 		},
 		Mux:       mux,
-		Clientset: clientset,
+		Clientset: nil,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ImageBasedUpgrade")
 		os.Exit(1)

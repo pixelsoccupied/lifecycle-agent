@@ -24,12 +24,10 @@ import (
 	"github.com/openshift-kni/lifecycle-agent/internal/prep"
 	"github.com/openshift-kni/lifecycle-agent/internal/reboot"
 	lcautils "github.com/openshift-kni/lifecycle-agent/utils"
+	"github.com/spf13/cobra"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	"github.com/spf13/cobra"
 )
 
 // ibuStaterootSetupCmd represents the ibuStaterootSetup command
@@ -61,8 +59,6 @@ func ibuStaterootSetupRun() error {
 	)
 
 	// additional logger setup
-	loggerOpt := zap.Options{Development: true}
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&loggerOpt)))
 	logger := ctrl.Log.WithName("prep-stateroot-job")
 
 	// defer cleanup

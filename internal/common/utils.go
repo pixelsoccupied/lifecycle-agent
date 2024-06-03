@@ -247,13 +247,13 @@ type RetryRoundTripper struct {
 	log       logr.Logger
 }
 
-// RetryMiddleware pass this into your client to make it retriable with configured backoff
-func RetryMiddleware(logger logr.Logger) func(rt http.RoundTripper) http.RoundTripper {
+// GetMiddleware pass this into your client to make it retriable with configured backoff
+func GetMiddleware(logger logr.Logger) func(rt http.RoundTripper) http.RoundTripper {
 	return func(rt http.RoundTripper) http.RoundTripper {
 		return &RetryRoundTripper{
 			transport: rt,
 			backoff:   getBackoff(),
-			log:       logger.WithName("retry-middleware"),
+			log:       logger.WithName("middleware"),
 		}
 	}
 }
@@ -274,15 +274,42 @@ func getBackoff() wait.Backoff {
 // where API server maybe down and retries are needed to eventually be successful,
 // This allows all our client calls to have this "retry" feature without explicitly wrapping them
 func (r *RetryRoundTripper) RoundTrip(req *http.Request) (resp *http.Response, err error) {
+	r.log.Info("Retry Start")
 	if errRetryOnError := retry.OnError(r.backoff, IsRetriable, func() error {
+		r.log.Info("Making the real call")
 		resp, err = r.transport.RoundTrip(req)
 		if err != nil && IsRetriable(err) {
 			r.log.Info("WARNING: retrying", "req.url", req.URL.String(), "error", err)
 		}
+		r.log.Info("Done the real call")
 		return err //nolint:wrapcheck
 	}); errRetryOnError != nil {
 		r.log.Info("WARNING: retrying failed", "error", errRetryOnError)
 	}
-
+	r.log.Info("Retry Ends")
 	return resp, err //nolint:wrapcheck
+}
+
+type LogRoundTripper struct {
+	transport http.RoundTripper
+	log       logr.Logger
+}
+
+func LogMiddleware(logger logr.Logger) func(rt http.RoundTripper) http.RoundTripper {
+	return func(rt http.RoundTripper) http.RoundTripper {
+		return &LogRoundTripper{
+			transport: rt,
+			log:       logger.WithName("log-middleware"),
+		}
+	}
+}
+
+func (r *LogRoundTripper) RoundTrip(req *http.Request) (resp *http.Response, err error) {
+	r.log.Info("Logging Start")
+	resp, err = r.transport.RoundTrip(req)
+	if err != nil {
+		r.log.Info("something went wrong")
+	}
+	r.log.Info("Logging Done")
+	return resp, err
 }

@@ -19,6 +19,9 @@ package controllers
 import (
 	"context"
 	"fmt"
+	v1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/net"
 	"os"
 	"sync"
 	"time"
@@ -131,6 +134,52 @@ func (r *ImageBasedUpgradeReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	if r.Mux != nil {
 		r.Mux.Lock()
 		defer r.Mux.Unlock()
+	}
+	for {
+		r.Log.Info("creating job")
+		job := &kbatch.Job{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "demo-job",
+				Namespace: common.LcaNamespace,
+			},
+			Spec: kbatch.JobSpec{
+
+				Template: v1.PodTemplateSpec{
+					Spec: v1.PodSpec{
+						Containers: []v1.Container{
+							{
+								Name:  "demo",
+								Image: "myimage",
+							},
+						},
+						RestartPolicy: v1.RestartPolicyNever,
+					},
+				},
+			},
+		}
+
+		err := r.Create(ctx, job)
+		if err != nil {
+			if !k8serrors.IsAlreadyExists(err) {
+				if net.IsConnectionRefused(err) {
+					r.Log.Error(err, "connection refused main", "job", job)
+				} else {
+					r.Log.Error(err, "failed to create job", "job", job)
+				}
+			}
+		}
+
+		r.Log.Info("deleting job")
+		err = r.Delete(ctx, job, common.GenerateDeleteOptions())
+		if err != nil {
+			if !k8serrors.IsAlreadyExists(err) || !k8serrors.IsNotFound(err) {
+				r.Log.Error(err, "failed to delete job", "job", job)
+			}
+		}
+		r.Log.Info("Sleeping")
+		time.Sleep(2 * time.Second)
+		r.Log.Info("Up")
+
 	}
 
 	r.Log.Info("Start reconciling IBU", "name", req.NamespacedName)
